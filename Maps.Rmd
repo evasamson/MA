@@ -1,0 +1,25 @@
+---
+title: "Maps"
+output: html_document
+date: "2024-12-08"
+---
+
+```{r}
+library(tidyverse)
+library(here)
+```
+
+
+# read in data from csv
+```{r}
+byl_raw <- read.csv(here("Polynoidae - Bylgides mus nub=my num=DNA.csv")) |> janitor::clean_names()
+```
+
+# try with all station data available til now
+```{r}
+byl_locations <- byl_raw |> 
+  select(clade, martha_s_number, latitude, longitude) |> 
+  drop_na() |> 
+  filter(clade == "groenlandicus" | clade == "sarsi" | clade == "macrolepidus?" | clade == "annenkovae" | clade == "promamme" | clade == "elegans")
+```
+
