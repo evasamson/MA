@@ -7,6 +7,10 @@ date: "2024-12-08"
 ```{r}
 library(tidyverse)
 library(here)
+library(sf)
+library(ggspatial)
+library(rnaturalearth)
+library(ggOceanMaps)
 ```
 
 
@@ -15,11 +19,426 @@ library(here)
 byl_raw <- read.csv(here("Polynoidae - Bylgides mus nub=my num=DNA.csv")) |> janitor::clean_names()
 ```
 
-# try with all station data available til now
+# make the right table for locations of specimens
 ```{r}
 byl_locations <- byl_raw |> 
-  select(clade, martha_s_number, latitude, longitude) |> 
+  select(species, clade, martha_s_number, project_number, bold_process_specimen_id, latitude, longitude) |> 
   drop_na() |> 
-  filter(clade == "groenlandicus" | clade == "sarsi" | clade == "macrolepidus?" | clade == "annenkovae" | clade == "promamme" | clade == "elegans")
+  filter(clade == "groenlandicus" | clade == "sarsi" | clade == "macrolepidus?" | clade == "annenkovae" | clade == "promamme" | clade == "elegans") |> 
+  mutate(clade = factor(clade)) |> 
+  mutate(type = if_else(grepl("type", species, ignore.case = TRUE), "type", "nontype")) |> 
+  mutate(type = factor(type))
 ```
 
+```{r}
+byl_sf <- st_as_sf(byl_locations,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
+```
+
+
+# world distribution map (Mercator projection)
+```{r}
+world <- ne_countries(scale = 10, returnclass = "sf")
+
+
+# plot it
+ggplot() +
+  geom_sf(data = world) +
+  geom_sf(
+    data = byl_sf,
+    aes(color = clade),
+    size = 1.5,
+    alpha = .8
+  ) +
+  #coord_sf(xlim = c(0, 30), ylim = c(71, 80)) +
+  labs(color = "Clade", x = "Longitude", y = "Latitude", color = "Clade") +
+  theme_minimal()
+```
+
+
+
+# world distribution map (polar projection)
+```{r}
+
+# load packages
+packages <- list("dplyr", "sf", "ggplot2","mapview", "maptools", "raster") #"viridis"
+sapply(packages, require, character = TRUE)
+
+# plotting coastlines
+data("wrld_simpl", package = "maptools")
+
+w <- raster::crop(wrld_simpl, extent(-180, 180, 30, 90))
+    #plot(w)
+
+# make it into an sf object, transform the crs
+w_sf <- w |> 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
+  st_transform(st_crs(3995))
+
+
+
+# make function to plot
+distribution <- function(mysf, mycol, mylegend, myshape)
+  {ggplot() + 
+  geom_sf(data= w_sf, fill = "black", colour = "white", alpha = 0.6) +
+  geom_sf(data = mysf, aes(col = clade, shape = type, fill = clade), size = 2, alpha = .9) +
+  scale_shape_manual(values = c(19, 24), #19 is a dot, 17 a triangle
+                     labels = NULL) + 
+  scale_color_manual(values = mycol,
+                     labels = c(
+        expression(italic("B. annenkovae")), 
+        expression(italic("B. elegans")), 
+        expression(italic("B. groenlandicus")), 
+        expression(italic("B. promamme")), 
+        expression(italic("B. sarsi")))) +
+  scale_fill_manual(values = mycol,
+                    labels = NULL) +
+  scale_x_continuous(breaks = NULL) +
+  labs(title = "", x = "", y = "") +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank(), 
+        text = element_text(size = 12),
+        legend.title = element_blank(),
+        legend.position = mylegend)
+}
+
+```
+
+```{r}
+# base R solution
+data("wrld_simpl", package = "maptools")
+
+w.equator <- raster::crop(wrld_simpl, extent(-180, 180, 0, 90))  |> 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
+  st_transform(st_crs(3995))
+
+donut <- list(cbind(x = c(0:360, 360:0, 0), y = c(rep(45, 361), c(rep(0,361)), 45))) %>%  st_polygon %>%
+    st_sfc(crs = 4326) %>%  st_transform(st_crs(3995))
+
+fortyfive <- cbind(x = 0:360, y = rep(45, 361)) %>% st_linestring() %>%  
+    st_sfc(crs = 4326) %>% st_transform(st_crs(3995)) 
+
+# putting it together
+par(mar = rep(.1,4))
+layout(matrix(1:2, ncol =2), widths = c(1.5,1)) 
+
+plot(fortyfive, col = "grey30")
+plot(st_geometry(w.equator), col = "white", add = TRUE, border = "grey30")
+plot(donut, add = TRUE, col = "white", border = NA)
+#plot(lang["LangFamily"], lwd = 1, lty = 1, pal = alpha(cols, .8), add = TRUE, border = NA)
+
+par(mar = c(0,0,6,0), xpd = NA); plot.new()
+mtext(side = 3, "Language family", font = 1, line = 0, adj = 0)
+legend(x = "topleft", ncol = 1, cex = 0.8, legend = labs, col = cols, pch=15, pt.cex = 1.5, bty = "n")
+
+```
+
+# make sf for species
+
+```{r}
+# acutisetis
+#byl_acutisetis <- byl_locations |> 
+# filter(clade == "acutisetis")
+
+#byl_sf_acutisetis <- st_as_sf(byl_acutisetis,
+#                   coords = c("longitude", "latitude"),
+#                   crs = 4326)
+
+# annenkovae
+byl_annenkovae <- byl_locations |> 
+  filter(clade == "annenkovae")
+
+
+byl_sf_annenkovae <- st_as_sf(byl_annenkovae,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
+
+# elegans
+byl_elegans <- byl_locations |> 
+  filter(clade == "elegans")
+
+
+byl_sf_elegans <- st_as_sf(byl_elegans,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
+
+# groenlandicus
+byl_groenlandicus <- byl_locations |> 
+  filter(clade == "groenlandicus")
+
+
+byl_sf_groenlandicus <- st_as_sf(byl_groenlandicus,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
+
+# promamme
+byl_promamme <- byl_locations |> 
+  filter(clade == "promamme")
+
+
+byl_sf_promamme <- st_as_sf(byl_promamme,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
+
+# sarsi
+byl_sarsi <- byl_locations |> 
+  filter(clade == "sarsi")
+
+
+byl_sf_sarsi <- st_as_sf(byl_sarsi,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
+```
+
+# set colors
+```{r}
+# set colors for the species and their types
+colors_all <- c(
+"olivedrab3", "aquamarine", "brown3", "orchid3","darkblue")
+
+
+
+colors_sampling_coverage <- c("orangered1","orangered1","orangered1","orangered1","orangered1") 
+#colors_acutisetis
+colors_annenkovae <- c("olivedrab3","olivedrab3")
+colors_elegans <- c("aquamarine","aquamarine")
+colors_groenlandicus <- c("brown3","brown3")
+colors_promamme <- c("orchid3","orchid3")
+colors_sarsi <- c("darkblue","darkblue")
+```
+
+
+# plot species distributions
+```{r}
+distr_coverage <- distribution(mysf = byl_sf,
+                               mycol = colors_sampling_coverage,
+                               mylegend = "none")
+distr_coverage
+
+distr_all <- distribution(mysf = byl_sf,
+                          mycol = colors_all,
+                          mylegend = "bottom")
+distr_all
+
+#distr_acutisetis <- distribution(mysf = byl_sf_acutisetis,
+#                                 mycol = colors_acutisetis,
+#                                 mylegend = "none")
+#distr_acutisetis
+
+distr_annenkovae <- distribution(mysf = byl_sf_annenkovae,
+                                 mycol = colors_annenkovae,
+                                 mylegend = "none")
+distr_annenkovae
+
+distr_elegans <- distribution(mysf = byl_sf_elegans,
+                              mycol = colors_elegans,
+                              mylegend = "none")
+distr_elegans
+
+distr_groenlandicus <- distribution(mysf = byl_sf_groenlandicus,
+                                    mycol = colors_groenlandicus,
+                                    mylegend = "none")
+distr_groenlandicus
+
+distr_promamme <- distribution(mysf = byl_sf_promamme,
+                               mycol = colors_promamme,
+                               mylegend = "none")
+distr_promamme
+
+distr_sarsi <- distribution(mysf = byl_sf_sarsi,
+                            mycol = colors_sarsi,
+                            mylegend = "none")
+distr_sarsi
+
+```
+
+# check for color blindness
+```{r}
+library(colorBlindness)
+
+# trying the color palette
+colors_all <- c("darkblue", "brown3", "orchid3", "olivedrab3", "aquamarine")
+
+# test for color blindness
+colors_tbl <- tibble(letter = c("a", "a", "b", "b", "b", "c", "d", "d", "d", "e", "e", "e", "e"))
+colors_bars <- ggplot(colors_tbl, aes(x = letter, fill = letter)) +
+  geom_bar(stat = "count") +
+  scale_fill_manual(values = colors_all)
+cvdPlot(colors_bars)
+
+cvdPlot(distr_all)
+cvdPlot(distr_annenkovae)
+cvdPlot(distr_coverage)
+cvdPlot(distr_elegans)
+cvdPlot(distr_groenlandicus)
+cvdPlot(distr_promamme)
+cvdPlot(distr_sarsi)
+```
+
+
+
+# saving maps
+```{r}
+# make saving function
+save_map <- function(out_name, myplot)
+  {ggsave(here("output", out_name), plot = myplot, width = 120, height = 80, units = "mm", scale = 1.8)
+}
+
+# save all species maps
+save_map(out_name = "sampling_coverage2.png",
+         myplot = distr_coverage)
+save_map(out_name = "distribution_bylgides2.png",
+         myplot = distr_all)
+save_map(out_name = "distribution_annenkovae2.png",
+         myplot = distr_annenkovae)
+save_map(out_name = "distribution_elegans2.png",
+         myplot = distr_elegans)
+save_map(out_name = "distribution_groenlandicus2.png",
+         myplot = distr_groenlandicus)
+save_map(out_name = "distribution_promamme2.png",
+         myplot = distr_promamme)
+save_map(out_name = "distribution_sarsi2.png",
+         myplot = distr_sarsi)
+```
+
+
+# basic maps
+```{r}
+europe <- ne_countries(scale = 50, returnclass = "sf", continent = "Europe")
+
+#rnaturalearth
+ggplot() +
+  geom_sf(data = europe) +
+  coord_sf(xlim = c(5, 35), ylim = c(76, 81)) +
+  ggtitle("Norden")
+
+#ggOceanMap
+basemap(limits = c(5, 35, 76, 81),
+        bathymetry = TRUE,
+        glaciers = TRUE)
+
+#random map
+theme_set(theme_bw())
+library("rnaturalearth")
+library("rnaturalearthdata")
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+ggplot(data = world) +
+  geom_sf(color = "black", fill = "grey") +
+  xlab("Longitude") + ylab("Latitude") +
+  annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "bl", which_north = "true", 
+        pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+        style = north_arrow_fancy_orienteering)
+```
+
+
+# old local distribution map
+```{r}
+# only use sample data to not screw up projection
+byl_local_mod <- byl_locations |> 
+  filter(latitude > 71) |> 
+  filter(longitude > 0) |> 
+  filter(longitude < 30)
+
+# make sf object from sample using its right crs code
+byl_sf_local <- st_as_sf(byl_local_mod,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
+
+# make base-map -> try highres here!
+europe <- ne_countries(scale = 10, returnclass = "sf", continent = "Europe")
+
+
+# plot it
+ggplot() +
+  geom_sf(data = europe) +
+  geom_sf(
+    data = byl_sf_local,
+    aes(color = clade),
+    size = 1.5,
+    alpha = .8
+  ) +
+  coord_sf(xlim = c(0, 30), ylim = c(71, 80)) +
+  labs(colour = "Clade", x = "Longitude", y = "Latitude", color = "Clade") +
+  scale_color_manual(values = c("forestgreen", "orange", "blue1"), labels = c("B. annenkovae", "B. groenlandicus", "B. sarsi")) +
+  theme_minimal()
+```
+
+# Now make depth plot
+```{r}
+byl_depths <- byl_raw |> 
+  select(clade, depth) |> 
+  drop_na() |> 
+  filter(clade == "groenlandicus" | clade == "sarsi" | clade == "macrolepidus?" | clade == "annenkovae" | clade == "promamme" | clade == "elegans")
+
+# split the depth column if it is a span
+byl_depths <- byl_depths |> 
+  mutate(
+    depth_start = case_when(
+      str_detect(depth, "^\\d+$") ~ as.numeric(depth),
+      TRUE ~ as.numeric(str_extract(depth, "^\\d+"))),
+    
+    depth_end = case_when(
+      str_detect(depth, "^\\d+$") ~ as.numeric(depth),
+      TRUE ~ as.numeric(str_extract(depth, "(?<=-).*$"))))
+
+# make an average depth for spans and drop rows without depths
+byl_depths_av <- byl_depths |> 
+  drop_na() |> 
+  mutate(depth_av = (depth_start+depth_end)/2)
+
+# make depth categories instead and prepare plot
+byl_depths_cat <- byl_depths_av |> 
+  mutate(
+    depth_category = case_when(
+      depth_av >= 0 & depth_av <= 200 ~ "0-200m", 
+      depth_av > 200 & depth_av <= 1500 ~ "200-1500m",
+      TRUE ~ ">1500m")) |> 
+  group_by(clade, depth_category) |> 
+  summarise(count = n())
+#different categories
+byl_depths_cat1 <- byl_depths_av |> 
+  mutate(
+    depth_category = case_when(
+      depth_av >= 0 & depth_av <= 200 ~ "0-200m", 
+      depth_av > 200 & depth_av <= 500 ~ "200-500m",
+      depth_av > 500 & depth_av <= 2000 ~ "500-2000m",
+      TRUE ~ ">2000m")) |> 
+  group_by(clade, depth_category) |> 
+  summarise(count = n())
+
+
+# plot it absolute
+ggplot(byl_depths_cat, aes(x = depth_category, y = count, fill = clade)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(
+    x = "Depth Category",
+    y = "Number of Individuals",
+    fill = "Clade"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_viridis_d()
+ggplot(byl_depths_cat1, aes(x = depth_category, y = count, fill = clade)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(
+    x = "Depth Category",
+    y = "Number of Individuals",
+    fill = "Clade"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_viridis_d()
+
+
+# plot it relative
+byl_depths_cat_sum <- byl_depths_cat |> 
+  group_by(depth_category) |> 
+  summarize(total_count = sum(count))
+
+```
+the different sarsi clades do not correspond to depths... the BEST specimens that are separated are from 54 and 102m, and a lot of other sarsi also occurs in the shallow layer.
