@@ -82,9 +82,9 @@ w_sf <- w |>
 distribution <- function(mysf, mycol, mylegend, myshape)
   {ggplot() + 
   geom_sf(data= w_sf, fill = "black", colour = "white", alpha = 0.6) +
-  geom_sf(data = mysf, aes(col = clade, shape = type, fill = clade), size = 2, alpha = .9) +
-  scale_shape_manual(values = c(19, 24), #19 is a dot, 17 a triangle
-                     labels = NULL) + 
+  geom_sf(data = mysf, aes(col = clade, shape = type), size = 2.5, alpha = 1) +
+  scale_shape_manual(values = c(19, 17), #19 is a dot, 17 a triangle
+                     labels = c("specimen", "type specimen")) + 
   scale_color_manual(values = mycol,
                      labels = c(
         expression(italic("B. acutisetis")),
@@ -94,8 +94,6 @@ distribution <- function(mysf, mycol, mylegend, myshape)
         expression(italic("B. macrolepidus")),
         expression(italic("B. promamme")), 
         expression(italic("B. sarsi")))) +
-  scale_fill_manual(values = mycol,
-                    labels = NULL) +
   scale_x_continuous(breaks = NULL) +
   labs(title = "", x = "", y = "") +
   theme(axis.text = element_blank(),
@@ -197,11 +195,11 @@ byl_sf_sarsi <- st_as_sf(byl_sarsi,
 # set colors
 ```{r}
 # set colors for the species and their types
-colors_all <- c("#000000ff", "#009e73ff", "#56b4e9ff", "#f0e442ff", "#e69f00ff", "#d55e00ff", "#cc79a7ff")
+colors_all <- c("#002060", "#009e73ff", "#56b4e9ff", "#f0e442ff", "#e69f00ff", "#d55e00ff", "#cc79a7ff")
 
 
-colors_sampling_coverage <- c("orangered1","orangered1","orangered1","orangered1","orangered1") 
-colors_acutisetis <- c("#000000ff", "#000000ff")
+colors_sampling_coverage <- c("red","red","red","red","red", "red", "red") 
+colors_acutisetis <- c("#002060", "#002060")
 colors_annenkovae <- c("#009e73ff","#009e73ff")
 colors_groenlandicus <- c("#e69f00ff","#e69f00ff")
 colors_macrolepidus <- c("#cc79a7ff", "#cc79a7ff")
@@ -288,20 +286,22 @@ save_map <- function(out_name, myplot)
 }
 
 # save all species maps
-save_map(out_name = "sampling_coverage2.png",
+save_map(out_name = "sampling_coverage.png",
          myplot = distr_coverage)
-save_map(out_name = "distribution_bylgides2.png",
+save_map(out_name = "distribution_bylgides.png",
          myplot = distr_all)
-save_map(out_name = "distribution_annenkovae2.png",
+save_map(out_name = "distribution_annenkovae.png",
          myplot = distr_annenkovae)
-save_map(out_name = "distribution_elegans2.png",
+save_map(out_name = "distribution_elegans.png",
          myplot = distr_elegans)
-save_map(out_name = "distribution_groenlandicus2.png",
+save_map(out_name = "distribution_groenlandicus.png",
          myplot = distr_groenlandicus)
-save_map(out_name = "distribution_promamme2.png",
+save_map(out_name = "distribution_promamme.png",
          myplot = distr_promamme)
-save_map(out_name = "distribution_sarsi2.png",
+save_map(out_name = "distribution_sarsi.png",
          myplot = distr_sarsi)
+save_map(out_name = "distribution_acutisetis.png",
+         myplot = distr_acutisetis)
 ```
 
 
