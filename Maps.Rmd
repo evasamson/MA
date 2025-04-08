@@ -24,7 +24,7 @@ byl_raw <- read.csv(here("Polynoidae - Bylgides mus nub=my num=DNA.csv")) |> jan
 byl_locations <- byl_raw |> 
   select(species, clade, martha_s_number, project_number, bold_process_specimen_id, latitude, longitude) |> 
   drop_na() |> 
-  filter(clade == "groenlandicus" | clade == "sarsi" | clade == "macrolepidus?" | clade == "annenkovae" | clade == "promamme" | clade == "elegans") |> 
+  filter(clade == "groenlandicus" | clade == "sarsi" | clade == "macrolepidus" | clade == "annenkovae" | clade == "promamme" | clade == "elegans" | clade == "acutisetis") |> 
   mutate(clade = factor(clade)) |> 
   mutate(type = if_else(grepl("type", species, ignore.case = TRUE), "type", "nontype")) |> 
   mutate(type = factor(type))
@@ -87,9 +87,11 @@ distribution <- function(mysf, mycol, mylegend, myshape)
                      labels = NULL) + 
   scale_color_manual(values = mycol,
                      labels = c(
+        expression(italic("B. acutisetis")),
         expression(italic("B. annenkovae")), 
         expression(italic("B. elegans")), 
-        expression(italic("B. groenlandicus")), 
+        expression(italic("B. groenlandicus")),
+        expression(italic("B. macrolepidus")),
         expression(italic("B. promamme")), 
         expression(italic("B. sarsi")))) +
   scale_fill_manual(values = mycol,
@@ -139,12 +141,12 @@ legend(x = "topleft", ncol = 1, cex = 0.8, legend = labs, col = cols, pch=15, pt
 
 ```{r}
 # acutisetis
-#byl_acutisetis <- byl_locations |> 
-# filter(clade == "acutisetis")
+byl_acutisetis <- byl_locations |> 
+ filter(clade == "acutisetis")
 
-#byl_sf_acutisetis <- st_as_sf(byl_acutisetis,
-#                   coords = c("longitude", "latitude"),
-#                   crs = 4326)
+byl_sf_acutisetis <- st_as_sf(byl_acutisetis,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
 
 # annenkovae
 byl_annenkovae <- byl_locations |> 
@@ -195,18 +197,17 @@ byl_sf_sarsi <- st_as_sf(byl_sarsi,
 # set colors
 ```{r}
 # set colors for the species and their types
-colors_all <- c(
-"olivedrab3", "aquamarine", "brown3", "orchid3","darkblue")
-
+colors_all <- c("#000000ff", "#009e73ff", "#56b4e9ff", "#f0e442ff", "#e69f00ff", "#d55e00ff", "#cc79a7ff")
 
 
 colors_sampling_coverage <- c("orangered1","orangered1","orangered1","orangered1","orangered1") 
-#colors_acutisetis
-colors_annenkovae <- c("olivedrab3","olivedrab3")
-colors_elegans <- c("aquamarine","aquamarine")
-colors_groenlandicus <- c("brown3","brown3")
-colors_promamme <- c("orchid3","orchid3")
-colors_sarsi <- c("darkblue","darkblue")
+colors_acutisetis <- c("#000000ff", "#000000ff")
+colors_annenkovae <- c("#009e73ff","#009e73ff")
+colors_groenlandicus <- c("#e69f00ff","#e69f00ff")
+colors_macrolepidus <- c("#cc79a7ff", "#cc79a7ff")
+colors_promamme <- c("#d55e00ff","#d55e00ff")
+colors_elegans <- c("#f0e442ff","#f0e442ff")
+colors_sarsi <- c("#56b4e9ff","#56b4e9ff")
 ```
 
 
@@ -222,10 +223,10 @@ distr_all <- distribution(mysf = byl_sf,
                           mylegend = "bottom")
 distr_all
 
-#distr_acutisetis <- distribution(mysf = byl_sf_acutisetis,
-#                                 mycol = colors_acutisetis,
-#                                 mylegend = "none")
-#distr_acutisetis
+distr_acutisetis <- distribution(mysf = byl_sf_acutisetis,
+                                 mycol = colors_acutisetis,
+                                 mylegend = "none")
+distr_acutisetis
 
 distr_annenkovae <- distribution(mysf = byl_sf_annenkovae,
                                  mycol = colors_annenkovae,
@@ -259,10 +260,10 @@ distr_sarsi
 library(colorBlindness)
 
 # trying the color palette
-colors_all <- c("darkblue", "brown3", "orchid3", "olivedrab3", "aquamarine")
+colors_all <- c("#000000ff", "#009e73ff", "#56b4e9ff", "#f0e442ff", "#e69f00ff", "#d55e00ff", "#cc79a7ff")
 
 # test for color blindness
-colors_tbl <- tibble(letter = c("a", "a", "b", "b", "b", "c", "d", "d", "d", "e", "e", "e", "e"))
+colors_tbl <- tibble(letter = c("a", "a", "b", "b", "b", "c", "d", "d", "d", "e", "e", "e", "e", "f", "f", "f", "g", "g", "g", "g", "h", "h"))
 colors_bars <- ggplot(colors_tbl, aes(x = letter, fill = letter)) +
   geom_bar(stat = "count") +
   scale_fill_manual(values = colors_all)
