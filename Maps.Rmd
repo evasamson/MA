@@ -261,7 +261,7 @@ library(colorBlindness)
 colors_all <- c("#000000ff", "#009e73ff", "#56b4e9ff", "#f0e442ff", "#e69f00ff", "#d55e00ff", "#cc79a7ff")
 
 # test for color blindness
-colors_tbl <- tibble(letter = c("a", "a", "b", "b", "b", "c", "d", "d", "d", "e", "e", "e", "e", "f", "f", "f", "g", "g", "g", "g", "h", "h"))
+colors_tbl <- tibble(letter = c("a", "a", "b", "b", "b", "c", "d", "d", "d", "e", "e", "e", "e", "f", "f", "f", "g", "g", "g", "g"))
 colors_bars <- ggplot(colors_tbl, aes(x = letter, fill = letter)) +
   geom_bar(stat = "count") +
   scale_fill_manual(values = colors_all)
