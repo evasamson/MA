@@ -4,6 +4,9 @@ output: html_document
 date: "2024-12-08"
 ---
 
+check if I still need several values in color vectors or how to undo that
+
+# load packages
 ```{r}
 library(tidyverse)
 library(here)
@@ -14,26 +17,21 @@ library(ggOceanMaps)
 ```
 
 
-# read in data from csv
+# read in data
 ```{r}
 byl_raw <- read.csv(here("Polynoidae - Bylgides mus nub=my num=DNA.csv")) |> janitor::clean_names()
 ```
 
-# make the right table for locations of specimens
-```{r}
-byl_locations <- byl_raw |> 
-  select(species, clade, martha_s_number, project_number, bold_process_specimen_id, latitude, longitude) |> 
-  drop_na() |> 
-  filter(clade == "groenlandicus" | clade == "sarsi" | clade == "macrolepidus" | clade == "annenkovae" | clade == "promamme" | clade == "elegans" | clade == "acutisetis") |> 
-  mutate(clade = factor(clade)) |> 
-  mutate(type = if_else(grepl("type", species, ignore.case = TRUE), "type", "nontype")) |> 
-  mutate(type = factor(type))
-```
 
+# make table for locations
 ```{r}
-byl_sf <- st_as_sf(byl_locations,
-                   coords = c("longitude", "latitude"),
-                   crs = 4326)
+byl_locations <- byl_raw |>
+  select(species, clade, marthas_number, project_number, bold_process_specimen_id, latitude, longitude) |>
+  drop_na() |>
+  filter(clade != "", clade != "unsampled", clade != "not_on_tree") |> 
+  mutate(clade = factor(clade)) |> 
+  mutate(type = if_else(grepl("type", species, ignore.case = TRUE), "type", "nontype")) |> #this introduces the type or nontype column
+  mutate(type = factor(type))
 ```
 
 
@@ -41,8 +39,7 @@ byl_sf <- st_as_sf(byl_locations,
 ```{r}
 world <- ne_countries(scale = 10, returnclass = "sf")
 
-
-# plot it
+# plot it (run sf objects first for this to work)
 ggplot() +
   geom_sf(data = world) +
   geom_sf(
@@ -51,49 +48,52 @@ ggplot() +
     size = 1.5,
     alpha = .8
   ) +
-  #coord_sf(xlim = c(0, 30), ylim = c(71, 80)) +
   labs(color = "Clade", x = "Longitude", y = "Latitude", color = "Clade") +
   theme_minimal()
 ```
 
 
 
-# world distribution map (polar projection)
-```{r}
 
+
+
+# world distribution map (polar projection)
+Once you've run this code, some other functions won't work anymore since packages are conflicting. Both restarting R or running some unload-code help:
+detach("package:mapview", unload=TRUE)
+detach("package:maptools", unload=TRUE)
+detach("package:raster", unload=TRUE)
+```{r}
 # load packages
-packages <- list("dplyr", "sf", "ggplot2","mapview", "maptools", "raster") #"viridis"
+packages <- list("dplyr", "sf", "ggplot2","mapview", "maptools", "raster")
 sapply(packages, require, character = TRUE)
 
-# plotting coastlines
+# plotting coastlines of different extent
 data("wrld_simpl", package = "maptools")
 
-w <- raster::crop(wrld_simpl, extent(-180, 180, 30, 90))
+w_arctic <- raster::crop(wrld_simpl, extent(-180, 180, 30, 90))
+w_boreal <- raster::crop(wrld_simpl, extent(-180, 180, 20, 90))
     #plot(w)
 
-# make it into an sf object, transform the crs
-w_sf <- w |> 
+# make them into sf objects, transform the crs
+w_arctic_sf <- w_arctic |> 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
+  st_transform(st_crs(3995))
+w_boreal_sf <- w_boreal |> 
   st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
   st_transform(st_crs(3995))
 
 
 
 # make function to plot
-distribution <- function(mysf, mycol, mylegend, myshape)
+distribution <- function(mybasesf, mysf, mycol, mylabels, mylegend)
   {ggplot() + 
-  geom_sf(data= w_sf, fill = "black", colour = "white", alpha = 0.6) +
+  geom_sf(data= mybasesf, fill = "black", colour = "white", alpha = 0.6) +
   geom_sf(data = mysf, aes(col = clade, shape = type), size = 2.5, alpha = 1) +
   scale_shape_manual(values = c(19, 17), #19 is a dot, 17 a triangle
-                     labels = c("specimen", "type specimen")) + 
+                     labels = c("specimen", "type specimen"),
+                     guide = "none") + 
   scale_color_manual(values = mycol,
-                     labels = c(
-        expression(italic("B. acutisetis")),
-        expression(italic("B. annenkovae")), 
-        expression(italic("B. elegans")), 
-        expression(italic("B. groenlandicus")),
-        expression(italic("B. macrolepidus")),
-        expression(italic("B. promamme")), 
-        expression(italic("B. sarsi")))) +
+                     labels = mylabels) +
   scale_x_continuous(breaks = NULL) +
   labs(title = "", x = "", y = "") +
   theme(axis.text = element_blank(),
@@ -101,46 +101,40 @@ distribution <- function(mysf, mycol, mylegend, myshape)
         panel.background = element_blank(), 
         text = element_text(size = 12),
         legend.title = element_blank(),
-        legend.position = mylegend)
+        legend.position = mylegend,
+        legend.byrow = TRUE)
 }
 
 ```
 
+
+# make sf objects
+If the code gives weird errors, check the note in the section "world distribution map (polar projection)"
 ```{r}
-# base R solution
-data("wrld_simpl", package = "maptools")
+# all species (coverage)
+byl_sf <- st_as_sf(byl_locations,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
 
-w.equator <- raster::crop(wrld_simpl, extent(-180, 180, 0, 90))  |> 
-  st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
-  st_transform(st_crs(3995))
+# sensu stricto species
+byl_senstr <- byl_locations |> 
+  filter(clade != "macrolepidus", clade != "acutisetis", clade != "acutisetis_close", clade != "fuscus", clade != "belfastensis", clade != "bylgides")
 
-donut <- list(cbind(x = c(0:360, 360:0, 0), y = c(rep(45, 361), c(rep(0,361)), 45))) %>%  st_polygon %>%
-    st_sfc(crs = 4326) %>%  st_transform(st_crs(3995))
+byl_senstr_sf <- st_as_sf(byl_senstr,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
 
-fortyfive <- cbind(x = 0:360, y = rep(45, 361)) %>% st_linestring() %>%  
-    st_sfc(crs = 4326) %>% st_transform(st_crs(3995)) 
+# excluded species
+byl_excl <- byl_locations |> 
+  filter(clade == "macrolepidus" | clade == "acutisetis" | clade == "acutisetis_close" | clade == "fuscus" | clade == "belfastensis" | clade == "bylgides")
 
-# putting it together
-par(mar = rep(.1,4))
-layout(matrix(1:2, ncol =2), widths = c(1.5,1)) 
+byl_excl_sf <- st_as_sf(byl_excl,
+                   coords = c("longitude", "latitude"),
+                   crs = 4326)
 
-plot(fortyfive, col = "grey30")
-plot(st_geometry(w.equator), col = "white", add = TRUE, border = "grey30")
-plot(donut, add = TRUE, col = "white", border = NA)
-#plot(lang["LangFamily"], lwd = 1, lty = 1, pal = alpha(cols, .8), add = TRUE, border = NA)
-
-par(mar = c(0,0,6,0), xpd = NA); plot.new()
-mtext(side = 3, "Language family", font = 1, line = 0, adj = 0)
-legend(x = "topleft", ncol = 1, cex = 0.8, legend = labs, col = cols, pch=15, pt.cex = 1.5, bty = "n")
-
-```
-
-# make sf for species
-
-```{r}
-# acutisetis
+# acutisetis & acutisetis_close
 byl_acutisetis <- byl_locations |> 
- filter(clade == "acutisetis")
+ filter(clade == "acutisetis" | clade == "acutisetis_close")
 
 byl_sf_acutisetis <- st_as_sf(byl_acutisetis,
                    coords = c("longitude", "latitude"),
@@ -175,7 +169,7 @@ byl_sf_groenlandicus <- st_as_sf(byl_groenlandicus,
 
 # promamme
 byl_promamme <- byl_locations |> 
-  filter(clade == "promamme")
+  filter(clade == "promamme" | clade == "promamme_close")
 
 
 byl_sf_promamme <- st_as_sf(byl_promamme,
@@ -192,82 +186,127 @@ byl_sf_sarsi <- st_as_sf(byl_sarsi,
                    crs = 4326)
 ```
 
+
 # set colors
 ```{r}
 # set colors for the species and their types
-colors_all <- c("#002060", "#009e73ff", "#56b4e9ff", "#f0e442ff", "#e69f00ff", "#d55e00ff", "#cc79a7ff")
+colors_senstr <- c("#228834ff", "#f0e442ff", "#d55e00ff", "#7e2954ff","#cc79a7ff","#65dbedff")
+colors_excl <- c("#5a8efcff", "#735deeff", "#000049ff", "grey", "#5da899ff", "#ef6678ff")
 
+colors_sampling_coverage <- rep("red", 12) 
+colors_acutisetis <- c("#5a8efcff", "#735deeff")
+colors_annenkovae <- c("#228834ff")
+colors_belfastensis <- c("#000049ff")
+colors_bylgides <- c("grey")
+colors_elegans <- c("#f0e442ff")
+colors_fuscus <- c("#5da899ff")
+colors_groenlandicus <- c("#d55e00ff")
+colors_macrolepidus <- c("#ef6678ff")
+colors_promamme <- c("#7e2954ff","#cc79a7ff")
+colors_sarsi <- c("#65dbedff")
 
-colors_sampling_coverage <- c("red","red","red","red","red", "red", "red") 
-colors_acutisetis <- c("#002060", "#002060")
-colors_annenkovae <- c("#009e73ff","#009e73ff")
-colors_groenlandicus <- c("#e69f00ff","#e69f00ff")
-colors_macrolepidus <- c("#cc79a7ff", "#cc79a7ff")
-colors_promamme <- c("#d55e00ff","#d55e00ff")
-colors_elegans <- c("#f0e442ff","#f0e442ff")
-colors_sarsi <- c("#56b4e9ff","#56b4e9ff")
 ```
 
 
 # plot species distributions
 ```{r}
-distr_coverage <- distribution(mysf = byl_sf,
+distr_coverage <- distribution(mybasesf = w_boreal_sf,
+                               mysf = byl_sf,
                                mycol = colors_sampling_coverage,
+                               mylabels = "none",
                                mylegend = "none")
 distr_coverage
 
-distr_all <- distribution(mysf = byl_sf,
-                          mycol = colors_all,
+distr_senstr <- distribution(mybasesf = w_arctic_sf,
+                          mysf = byl_senstr_sf,
+                          mycol = colors_senstr,
+                          mylabels = c(
+        expression(italic("B. annenkovae")), 
+        expression(italic("B. elegans")), 
+        expression(italic("B. groenlandicus")),
+        expression(italic("B. promamme")), 
+        "specimen OP473761",
+        expression(italic("B. sarsi"))),
                           mylegend = "bottom")
-distr_all
+distr_senstr
 
-distr_acutisetis <- distribution(mysf = byl_sf_acutisetis,
+distr_excl <- distribution(mybasesf = w_boreal_sf,
+                          mysf = byl_excl_sf,
+                          mycol = colors_excl,
+                          mylabels = c(
+        expression(italic("B. acutisetis")),
+        "Polynoidae gen. sp.", #acutisetis_close
+        expression(italic("B. belfastensis")),
+        expression(italic("Bylgides sp.")),
+        expression(italic("B. fuscus")),
+        expression(italic("B. macrolepidus"))),
+                          mylegend = "bottom")
+distr_excl
+
+distr_acutisetis <- distribution(mybasesf = w_boreal_sf,
+                                 mysf = byl_sf_acutisetis,
                                  mycol = colors_acutisetis,
-                                 mylegend = "none")
+                                 mylabels = c(
+        expression(italic("B. acutisetis")),
+        "Polynoidae gen. sp."),
+                                 mylegend = "bottom")
 distr_acutisetis
 
-distr_annenkovae <- distribution(mysf = byl_sf_annenkovae,
+distr_annenkovae <- distribution(mybasesf = w_arctic_sf,
+                                 mysf = byl_sf_annenkovae,
                                  mycol = colors_annenkovae,
+                                 mylabels = "none",
                                  mylegend = "none")
 distr_annenkovae
 
-distr_elegans <- distribution(mysf = byl_sf_elegans,
+distr_elegans <- distribution(mybasesf = w_arctic_sf,
+                              mysf = byl_sf_elegans,
                               mycol = colors_elegans,
+                              mylabels = "none",
                               mylegend = "none")
 distr_elegans
 
-distr_groenlandicus <- distribution(mysf = byl_sf_groenlandicus,
+distr_groenlandicus <- distribution(mybasesf = w_arctic_sf,
+                                    mysf = byl_sf_groenlandicus,
                                     mycol = colors_groenlandicus,
+                                    mylabels = "none",
                                     mylegend = "none")
 distr_groenlandicus
 
-distr_promamme <- distribution(mysf = byl_sf_promamme,
+distr_promamme <- distribution(mybasesf = w_arctic_sf,
+                               mysf = byl_sf_promamme,
                                mycol = colors_promamme,
+                               mylabels = "none",
                                mylegend = "none")
 distr_promamme
 
-distr_sarsi <- distribution(mysf = byl_sf_sarsi,
+distr_sarsi <- distribution(mybasesf = w_arctic_sf,
+                            mysf = byl_sf_sarsi,
                             mycol = colors_sarsi,
+                            mylabels = "none",
                             mylegend = "none")
 distr_sarsi
 
 ```
 
-# check for color blindness
+
+# check plots for color blindness
 ```{r}
 library(colorBlindness)
 
 # trying the color palette
-colors_all <- c("#000000ff", "#009e73ff", "#56b4e9ff", "#f0e442ff", "#e69f00ff", "#d55e00ff", "#cc79a7ff")
+colors_all <- c("#228834ff", "#f0e442ff", "#d55e00ff", "#7e2954ff","#cc79a7ff","#65dbedff", "#5a8efcff", "#735deeff", "#000049ff", "grey", "#5da899ff", "#ef6678ff")
 
 # test for color blindness
-colors_tbl <- tibble(letter = c("a", "a", "b", "b", "b", "c", "d", "d", "d", "e", "e", "e", "e", "f", "f", "f", "g", "g", "g", "g"))
+colors_tbl <- tibble(letter = c("a", "a", "b", "b", "b", "c", "d", "d", "d", "e", "e", "e", "e", "f", "f", "f", "g", "g", "g", "g", "h", "h", "i", "i", "i", "j", "j", "j", "k", "k", "l", "l", "l"))
 colors_bars <- ggplot(colors_tbl, aes(x = letter, fill = letter)) +
   geom_bar(stat = "count") +
   scale_fill_manual(values = colors_all)
 cvdPlot(colors_bars)
 
-cvdPlot(distr_all)
+cvdPlot(distr_senstr)
+cvdPlot(distr_excl)
+cvdPlot(distr_acutisetis)
 cvdPlot(distr_annenkovae)
 cvdPlot(distr_coverage)
 cvdPlot(distr_elegans)
@@ -275,6 +314,8 @@ cvdPlot(distr_groenlandicus)
 cvdPlot(distr_promamme)
 cvdPlot(distr_sarsi)
 ```
+
+
 
 
 
@@ -288,8 +329,10 @@ save_map <- function(out_name, myplot)
 # save all species maps
 save_map(out_name = "sampling_coverage.png",
          myplot = distr_coverage)
-save_map(out_name = "distribution_bylgides.png",
-         myplot = distr_all)
+save_map(out_name = "distribution_sensustricto.png",
+         myplot = distr_senstr)
+save_map(out_name = "distribution_excludedbylgides.png",
+         myplot = distr_excl)
 save_map(out_name = "distribution_annenkovae.png",
          myplot = distr_annenkovae)
 save_map(out_name = "distribution_elegans.png",
