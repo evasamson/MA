@@ -35,79 +35,6 @@ byl_locations <- byl_raw |>
 ```
 
 
-# world distribution map (Mercator projection)
-```{r}
-world <- ne_countries(scale = 10, returnclass = "sf")
-
-# plot it (run sf objects first for this to work)
-ggplot() +
-  geom_sf(data = world) +
-  geom_sf(
-    data = byl_sf,
-    aes(color = clade),
-    size = 1.5,
-    alpha = .8
-  ) +
-  labs(color = "Clade", x = "Longitude", y = "Latitude", color = "Clade") +
-  theme_minimal()
-```
-
-
-
-
-
-
-# world distribution map (polar projection)
-Once you've run this code, some other functions won't work anymore since packages are conflicting. Both restarting R or running some unload-code help:
-detach("package:mapview", unload=TRUE)
-detach("package:maptools", unload=TRUE)
-detach("package:raster", unload=TRUE)
-```{r}
-# load packages
-packages <- list("dplyr", "sf", "ggplot2","mapview", "maptools", "raster")
-sapply(packages, require, character = TRUE)
-
-# plotting coastlines of different extent
-data("wrld_simpl", package = "maptools")
-
-w_arctic <- raster::crop(wrld_simpl, extent(-180, 180, 30, 90))
-w_boreal <- raster::crop(wrld_simpl, extent(-180, 180, 20, 90))
-    #plot(w)
-
-# make them into sf objects, transform the crs
-w_arctic_sf <- w_arctic |> 
-  st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
-  st_transform(st_crs(3995))
-w_boreal_sf <- w_boreal |> 
-  st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
-  st_transform(st_crs(3995))
-
-
-
-# make function to plot
-distribution <- function(mybasesf, mysf, mycol, mylabels, mylegend)
-  {ggplot() + 
-  geom_sf(data= mybasesf, fill = "black", colour = "white", alpha = 0.6) +
-  geom_sf(data = mysf, aes(col = clade, shape = type), size = 2.5, alpha = 1) +
-  scale_shape_manual(values = c(19, 17), #19 is a dot, 17 a triangle
-                     labels = c("specimen", "type specimen"),
-                     guide = "none") + 
-  scale_color_manual(values = mycol,
-                     labels = mylabels) +
-  scale_x_continuous(breaks = NULL) +
-  labs(title = "", x = "", y = "") +
-  theme(axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        panel.background = element_blank(), 
-        text = element_text(size = 12),
-        legend.title = element_blank(),
-        legend.position = mylegend,
-        legend.byrow = TRUE)
-}
-
-```
-
-
 # make sf objects
 If the code gives weird errors, check the note in the section "world distribution map (polar projection)"
 ```{r}
@@ -204,6 +131,82 @@ colors_groenlandicus <- c("#d55e00ff")
 colors_macrolepidus <- c("#ef6678ff")
 colors_promamme <- c("#7e2954ff","#cc79a7ff")
 colors_sarsi <- c("#65dbedff")
+
+```
+
+
+# world distribution map (Mercator projection)
+```{r}
+world <- ne_countries(scale = 10, returnclass = "sf")
+
+# plot it (run sf objects first for this to work)
+ggplot() +
+  geom_sf(data = world) +
+  geom_sf(
+    data = byl_sf,
+    aes(color = clade),
+    size = 1.5,
+    alpha = .8
+  ) +
+  labs(color = "Clade", x = "Longitude", y = "Latitude", color = "Clade") +
+  theme_minimal()
+```
+
+
+
+
+
+
+
+# world distribution map (polar projection)
+Once you've run this code, some other functions won't work anymore since packages are conflicting. Both restarting R or running some unload-code help:
+detach("package:mapview", unload=TRUE)
+detach("package:maptools", unload=TRUE)
+detach("package:raster", unload=TRUE)
+```{r}
+# load packages
+packages <- list("dplyr", "sf", "ggplot2","mapview", "maptools", "raster")
+sapply(packages, require, character = TRUE)
+
+# plotting coastlines of different extent
+data("wrld_simpl", package = "maptools")
+
+w_arctic <- raster::crop(wrld_simpl, extent(-180, 180, 30, 90))
+w_boreal <- raster::crop(wrld_simpl, extent(-180, 180, 20, 90))
+    #plot(w)
+
+# make them into sf objects, transform the crs
+w_arctic_sf <- w_arctic |> 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
+  st_transform(st_crs(3995))
+w_boreal_sf <- w_boreal |> 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) |> 
+  st_transform(st_crs(3995))
+
+
+
+# make function to plot
+distribution <- function(mybasesf, mysf, mycol, mylabels, mylegend)
+  {ggplot() + 
+  geom_sf(data= mybasesf, fill = "black", colour = "white", alpha = 0.6) +
+  geom_sf(data = mysf, aes(fill = clade, shape = type), size = 3, alpha = 1, colour = "black") +
+  scale_shape_manual(values = c(21, 24), #21 is a dot, 24 a triangle
+                     labels = c("specimen", "type specimen"),
+                     guide = "none") + 
+  scale_fill_manual(values = mycol,
+                    labels = mylabels,
+                    guide = guide_legend(override.aes = list(col = mycol))) + #makes the legend show the right colors
+  scale_x_continuous(breaks = NULL) +
+  labs(title = "", x = "", y = "") +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank(), 
+        text = element_text(size = 12),
+        legend.title = element_blank(),
+        legend.position = mylegend,
+        legend.byrow = TRUE)
+}
+
 
 ```
 
