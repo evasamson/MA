@@ -39,7 +39,10 @@ byl_locations <- byl_raw |>
 If the code gives weird errors, check the note in the section "world distribution map (polar projection)"
 ```{r}
 # all species (coverage)
-byl_sf <- st_as_sf(byl_locations,
+byl_coverage <- byl_locations |>
+  mutate(clade = if_else(marthas_number != "", "own", "public"))
+
+byl_sf_coverage <- st_as_sf(byl_coverage,
                    coords = c("longitude", "latitude"),
                    crs = 4326)
 
@@ -120,7 +123,7 @@ byl_sf_sarsi <- st_as_sf(byl_sarsi,
 colors_senstr <- c("#228834ff", "#f0e442ff", "#d55e00ff", "#7e2954ff","#cc79a7ff","#65dbedff")
 colors_excl <- c("#5a8efcff", "#735deeff", "#000049ff", "grey", "#5da899ff", "#ef6678ff")
 
-colors_sampling_coverage <- rep("red", 12) 
+colors_sampling_coverage <- c("red", "pink") 
 colors_acutisetis <- c("#5a8efcff", "#735deeff")
 colors_annenkovae <- c("#228834ff")
 colors_belfastensis <- c("#000049ff")
@@ -151,8 +154,6 @@ ggplot() +
   labs(color = "Clade", x = "Longitude", y = "Latitude", color = "Clade") +
   theme_minimal()
 ```
-
-
 
 
 
@@ -214,10 +215,12 @@ distribution <- function(mybasesf, mysf, mycol, mylabels, mylegend)
 # plot species distributions
 ```{r}
 distr_coverage <- distribution(mybasesf = w_boreal_sf,
-                               mysf = byl_sf,
+                               mysf = byl_sf_coverage,
                                mycol = colors_sampling_coverage,
-                               mylabels = "none",
-                               mylegend = "none")
+                               mylabels = c(
+        "UMB Material",
+        "Public data from BOLD or GenBank"),
+                               mylegend = "bottom")
 distr_coverage
 
 distr_senstr <- distribution(mybasesf = w_arctic_sf,
