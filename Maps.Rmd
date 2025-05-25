@@ -218,8 +218,8 @@ distr_coverage <- distribution(mybasesf = w_boreal_sf,
                                mysf = byl_sf_coverage,
                                mycol = colors_sampling_coverage,
                                mylabels = c(
-        "UMB Material",
-        "Public data from BOLD or GenBank"),
+        "studied material",
+        "public data from BOLD or GenBank"),
                                mylegend = "bottom")
 distr_coverage
 
